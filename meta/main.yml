@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  license: MIT
+  min_ansible_version: "2.10"
+  role_name: microsoft_sql
+  author: Lyas Spiehler
+  description: Ansible role for installing Microsoft SQL on Windows
+  company: Sapphire Health
+# collections: []
+# dependencies: []
+...

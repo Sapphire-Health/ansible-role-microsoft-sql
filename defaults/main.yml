@@ -1,4 +1,5 @@
 ---
-sql_install_file_dir: 'C:\temp\SQL'
-sql_http_url_path: https://dev.spiehlerfamily.com/nosync/
-sql_iso: enu_sql_server_2022_developer_edition_x64_dvd_7cacf733.iso
+microsoft_sql_install_dir: 'C:\temp\SQL'
+sql_install_dir_http_url_path: https://dev.spiehlerfamily.com/nosync/
+sql_install_iso: how_i_do_it.mp4
+# sql_iso: enu_sql_server_2022_developer_edition_x64_dvd_7cacf733.iso

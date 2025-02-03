@@ -17,10 +17,10 @@
 
     - name: Create temp folder on target
       ansible.windows.win_file:
-        path: "{{ sql_install_file_dir }}"
+        path: "{{ microsoft_sql_install_dir }}"
         state: directory
 
     - name: Copy ISO to target
       ansible.windows.win_get_url:
-        url: "{{ sql_http_url_path }}/{{ sql_iso }}"
-        dest: "{{ sql_install_file_dir }}\\{{ sql_iso }}"
+        url: "{{ sql_install_dir_http_url_path }}/{{ sql_install_iso }}"
+        dest: "{{ microsoft_sql_install_dir }}\\{{ sql_install_iso }}"
