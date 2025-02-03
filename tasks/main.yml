@@ -1,0 +1,26 @@
+---
+- name: Determine if the default instance exists.
+  ansible.windows.win_service:
+    name: 'MSSQLSERVER'
+  register: service_info
+
+- name: End play if default instance already exists.
+  when: service_info.exists
+  ansible.builtin.meta: end_play
+
+- name: Begin SQL Install Task
+  when: not service_info.exists
+  block:
+    - name: Set Windows power plan to high performance
+      community.windows.win_power_plan:
+        name: high performance
+
+    - name: Create temp folder on target
+      ansible.windows.win_file:
+        path: "{{ sql_install_file_dir }}"
+        state: directory
+
+    - name: Copy ISO to target
+      ansible.windows.win_get_url:
+        url: "{{ sql_http_url_path }}/{{ sql_iso }}"
+        dest: "{{ sql_install_file_dir }}\\{{ sql_iso }}"
