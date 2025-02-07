@@ -1,4 +1,9 @@
 ---
+# - name: Assert mandatory variables have been set
+#   ansible.builtin.assert: { that: "{{ item }} is defined" }
+#   with_items:
+#     - SAPWD
+
 - name: Determine if the default instance exists.
   ansible.windows.win_service:
     name: 'MSSQLSERVER'
@@ -11,16 +16,104 @@
 - name: Begin SQL Install Task
   when: not service_info.exists
   block:
+    # this task is required because of this https://github.com/ansible-collections/community.windows/issues/147#issuecomment-1989425640
+    # regarding the following task. I expect it to be fixed in a future release of the community.windows collection
+    # TODO: remove this task and test if the following task works without it when a new release
+    # of community.windows collection > 2.3.0 is available
+    - name: Ensure the required NuGet package provider version is installed
+      ansible.windows.win_shell: Find-PackageProvider -Name Nuget -ForceBootstrap -IncludeDependencies -Force
+
+    # Load required powershell modules
+    - name: Check for SQLServer DSC Powershell module
+      community.windows.win_psmodule:
+        name: "{{ item }}"
+        accept_license: true
+        state: present
+      with_items: "{{ mssql_psmodules }}"
+
+    - name: Install Windows feature
+      ansible.windows.win_feature:
+        name: "{{ item }}"
+        state: present
+      tags: install_mssql
+      with_items:
+        - NET-Framework-Core
+        - NET-Framework-Features
+        - NET-Framework-45-Features
+        - WAS
+
+    # - name: Ensure that a reboot is not pending
+    #   when: ansible_reboot_pending and not mssql_custom_installation_media
+    #   ansible.builtin.debug:
+    #     msg: 'Pending reboot detected'
+    #   changed_when: false
+    #   notify: reboot windows
+
     - name: Set Windows power plan to high performance
       community.windows.win_power_plan:
         name: high performance
 
+    - name: Install SQL Server Management Studio
+      when: install_smss
+      ansible.windows.win_package:
+        path: "{{ ssms_install_exe }}"
+        product_id: "{{ ssms_product_id }}"
+        arguments: /install /passive /norestart
+
     - name: Create temp folder on target
       ansible.windows.win_file:
-        path: "{{ microsoft_sql_install_dir }}"
+        path: "{{ sql_install_files_path }}"
         state: directory
 
     - name: Copy ISO to target
       ansible.windows.win_get_url:
         url: "{{ sql_install_dir_http_url_path }}/{{ sql_install_iso }}"
-        dest: "{{ microsoft_sql_install_dir }}\\{{ sql_install_iso }}"
+        dest: "{{ sql_install_files_path }}\\{{ sql_install_iso }}"
+        force: false
+
+    - name: Mount ISO
+      community.windows.win_disk_image:
+        image_path: "{{ sql_install_files_path }}\\{{ sql_install_iso }}"
+        state: present
+      register: disk_image_out
+
+    - name: Debug disk_image_out
+      ansible.builtin.debug:
+        var: disk_image_out.mount_paths[0]
+
+    # https://github.com/dsccommunity/SqlServerDsc/wiki/SqlSetup
+    - name: Install SQL Server
+      ansible.windows.win_dsc:
+        resource_name: SQLSetup
+        Action: "{{ dsc_action }}"
+        InstanceName: "{{ dsc_instancename }}"
+        Features: "{{ dsc_features }}"
+        SourcePath: "{{ disk_image_out.mount_paths[0] }}"
+        SQLSysAdminAccounts: "{{ dsc_sqlsyssdminaccounts }}"
+        InstallSQLDataDir: "{{ dsc_installsqldatadir }}"
+        SQLUserDBDir: "{{ dsc_sqluserdbdir }}"
+        SQLUserDBLogDir: "{{ dsc_sqluserdblogdir }}"
+        SQLTempDBDir: "{{ dsc_sqltempdbdir }}"
+        SQLTempDBLogDir: "{{ dsc_sqltempdblogdir }}"
+        SQLBackupDir: "{{ dsc_sqlbackupdir }}"
+        SecurityMode: "{{ dsc_securitymode }}"
+        SAPwd_username: sa
+        SAPwd_password: "{{ dsc_sapwd }}"
+        # DependsOn = '[WindowsFeature]NetFramework45'
+      register: install_out
+
+    - name: Debug install
+      ansible.builtin.debug:
+        var: install_out
+
+    - name: Unmount ISO
+      community.windows.win_disk_image:
+        image_path: "{{ sql_install_files_path }}\\{{ sql_install_iso }}"
+        state: absent
+
+# setup.exe /q /IACCEPTSQLSERVERLICENSETERMS=YES /ProductKey=YOUR_LICENSE_KEY
+# don't include line if arg doesn't exist
+# https://github.com/automatesql/Ansible-for-SQL-Server-DBAs/blob/main/Simple-SQL-Server-Install/playbook_installSQLServer.yml
+# https://github.com/bwInfoSec/ansible-role-windows-mssql/blob/main/tasks/main.yml
+# https://www.sqlservercentral.com/articles/advanced-sql-server-installation-using-powershell-dsc
+# https://learn.microsoft.com/en-us/sql/database-engine/install-windows/install-sql-server-with-powershell-desired-state-configuration?view=sql-server-ver16
