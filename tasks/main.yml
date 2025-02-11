@@ -128,32 +128,33 @@
         state: present
         enabled: true
 
-    - name: Create SQL Databases
+    - name: Configure SQL Databases
       when: sql_databases is defined
-      ansible.windows.win_dsc:
-        resource_name: SQLDatabase
-        Name: "{{  db.name }}"
-        InstanceName: "{{ dsc_instancename }}"
-        Collation: "{{ db.collation | default(omit) }}"
-        CompatibilityLevel: "{{ db.compatibility_level | default(omit) }}"
-        RecoveryModel: "{{ db.recovery_model | default(omit) }}"
-        OwnerName: "{{ db.owner_name | default(omit) }}"
-      loop: "{{ sql_databases }}"
-      loop_control:
-        loop_var: db
+      block:
+        - name: Create SQL Databases
+          ansible.windows.win_dsc:
+            resource_name: SQLDatabase
+            Name: "{{ db.name }}"
+            InstanceName: "{{ dsc_instancename }}"
+            Collation: "{{ db.collation | default(omit) }}"
+            CompatibilityLevel: "{{ db.compatibility_level | default(omit) }}"
+            RecoveryModel: "{{ db.recovery_model | default(omit) }}"
+            OwnerName: "{{ db.owner_name | default(omit) }}"
+          loop: "{{ sql_databases }}"
+          loop_control:
+            loop_var: db
 
-    - name: Add Users to SQL Databases
-      when: sql_databases is defined
-      ansible.windows.win_dsc:
-        resource_name: SqlDatabaseUser
-        DatabaseName: "{{ db.0.name }}"
-        InstanceName: "{{ dsc_instancename }}"
-        Name: "{{ db.1 }}"
-        UserType: Login
-        LoginName: "{{ db.1 }}"
-      loop: "{{ sql_databases|subelements('users') }}"
-      loop_control:
-        loop_var: db
+        - name: Add Users to SQL Databases
+          ansible.windows.win_dsc:
+            resource_name: SqlDatabaseUser
+            DatabaseName: "{{ db.0.name }}"
+            InstanceName: "{{ dsc_instancename }}"
+            Name: "{{ db.1 }}"
+            UserType: Login
+            LoginName: "{{ db.1 }}"
+          loop: "{{ sql_databases | subelements('users') }}"
+          loop_control:
+            loop_var: db
 
 # setup.exe /q /IACCEPTSQLSERVERLICENSETERMS=YES /ProductKey=YOUR_LICENSE_KEY
 # don't include line if arg doesn't exist
