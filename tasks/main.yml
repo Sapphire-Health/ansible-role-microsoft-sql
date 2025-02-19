@@ -192,7 +192,7 @@
             SetQuery: |
               USE [master]
               GO
-              ALTER DATABASE SystemPulse
+              ALTER DATABASE $(NAME)
               MODIFY FILE
               (
                 NAME = '$(NAME)',
