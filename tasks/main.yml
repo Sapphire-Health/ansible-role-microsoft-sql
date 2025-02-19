@@ -9,10 +9,6 @@
     name: 'MSSQLSERVER'
   register: service_info
 
-# - name: Debug variables
-#   ansible.builtin.debug:
-#     var: "{{ lookup('ansible.builtin.env', 'DSC_SAPWD', default=dsc_sapwd) }}"
-
 - name: End play if default instance already exists.
   when: service_info.exists
   ansible.builtin.meta: end_play
@@ -128,6 +124,24 @@
         state: present
         enabled: true
 
+    - name: Create Users
+      when: sql_users is defined
+      ansible.windows.win_dsc:
+        resource_name: SqlLogin
+        Name: "{{ user.name }}"
+        InstanceName: "{{ dsc_instancename }}"
+        LoginType: SqlLogin
+        LoginMustChangePassword: false
+        LoginPasswordExpirationEnabled: false
+        LoginPasswordPolicyEnforced: false
+        LoginCredential_username: "{{ user.name }}"
+        LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var, default=user.password) }}"
+      loop: "{{ sql_users }}"
+      vars:
+        user_env_var: "SQLUSER{{ user.name | upper }}PASSWORD"
+      loop_control:
+        loop_var: user
+
     - name: Configure SQL Databases
       when: sql_databases is defined
       block:
@@ -138,7 +152,7 @@
             InstanceName: "{{ dsc_instancename }}"
             Collation: "{{ db.collation | default(omit) }}"
             CompatibilityLevel: "{{ db.compatibility_level | default(omit) }}"
-            RecoveryModel: "{{ db.recovery_model | default(omit) }}"
+            RecoveryModel: "{{ db.recovery_model | default('FULL') }}"
             OwnerName: "{{ db.owner_name | default(omit) }}"
           loop: "{{ sql_databases }}"
           loop_control:
@@ -153,6 +167,65 @@
             UserType: Login
             LoginName: "{{ db.1 }}"
           loop: "{{ sql_databases | subelements('users') }}"
+          loop_control:
+            loop_var: db
+
+        - name: Add Users to Roles on SQL Databases
+          ansible.windows.win_dsc:
+            resource_name: SqlDatabaseRole
+            DatabaseName: "{{ db.0.name }}"
+            InstanceName: "{{ dsc_instancename }}"
+            Name: "{{ db.1.name }}"
+            MembersToInclude: "{{ db.1.members }}"
+            Ensure: Present
+          loop: "{{ sql_databases | subelements('roles') }}"
+          loop_control:
+            loop_var: db
+
+        - name: Configure SQL Database Files
+          ansible.windows.win_dsc:
+            resource_name: SqlScriptQuery
+            Id: "ConfigureDatabaseFiles"
+            InstanceName: "{{ dsc_instancename }}"
+            Variable: "NAME={{ db.name }}, SIZE={{ db.db_size }}, MAXSIZE={{ db.db_max_size }}, FILEGROWTH={{ db.db_growth }}"
+            Encrypt: Optional
+            SetQuery: |
+              USE [master]
+              GO
+              ALTER DATABASE SystemPulse
+              MODIFY FILE
+              (
+                NAME = '$(NAME)',
+                MAXSIZE = $(MAXSIZE),
+                SIZE = $(SIZE),
+                FILEGROWTH = $(FILEGROWTH)
+              )
+              GO
+            GetQuery: |
+              USE [master]
+              GO
+              SELECT * FROM sys.master_files
+              WHERE type_desc = 'ROWS'
+              AND name = '$(NAME)'
+              GO
+            TestQuery: |
+              USE [master]
+              GO
+              if(SELECT COUNT(database_id) FROM sys.master_files
+              WHERE type_desc = 'ROWS'
+              AND name = '$(NAME)'
+              AND size = 1024
+              AND max_size = -1
+              AND growth = 8192) = 0
+              BEGIN
+                PRINT 'Found default configuration'
+              END
+              ELSE
+              BEGIN
+                RAISERROR ('Default configuration has been modified', 16, 1)
+              END
+              GO
+          loop: "{{ sql_databases }}"
           loop_control:
             loop_var: db
 
