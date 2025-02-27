@@ -101,7 +101,7 @@
         SQLBackupDir: "{{ dsc_sqlbackupdir | default(omit) }}"
         SecurityMode: "{{ dsc_securitymode }}"
         SAPwd_username: sa
-        SAPwd_password: "{{ lookup('ansible.builtin.env', 'DSC_SAPWD', default=dsc_sapwd) }}"
+        SAPwd_password: "{{ lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=dsc_sapwd) }}"
         # DependsOn = '[WindowsFeature]NetFramework45'
       register: install_out
 
@@ -138,7 +138,7 @@
         LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var, default=user.password) }}"
       loop: "{{ sql_users }}"
       vars:
-        user_env_var: "SQLUSER{{ user.name | upper }}PASSWORD"
+        user_env_var: "SQL_{{ user.name | upper }}_PASSWORD"
       loop_control:
         loop_var: user
 
