@@ -56,23 +56,45 @@
     #   community.windows.win_power_plan:
     #     name: high performance
 
-    - name: Install SQL Server Management Studio
-      when: install_smss
-      ansible.windows.win_package:
-        path: "{{ ssms_install_exe }}"
-        product_id: "{{ ssms_product_id }}"
-        arguments: /install /passive /norestart
-
     - name: Create temp folder on target
       ansible.windows.win_file:
         path: "{{ sql_install_files_path }}"
         state: directory
 
-    - name: Copy ISO to target
+    - name: Copy SMSS install file via HTTP
       ansible.windows.win_get_url:
-        url: "{{ sql_install_dir_http_url_path }}/{{ sql_install_iso }}"
+        url: "{{ smss_install_source_dir }}/{{ smss_install_file }}"
+        dest: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
+        force: false
+      when: smss_install_source_dir is ansible.builtin.uri(schemes=['http', 'https'])
+
+    - name: Copy SMSS install file from Ansible server
+      ansible.windows.win_copy:
+        src: "{{ playbook_dir }}/{{ smss_install_source_dir }}/{{ smss_install_file }}"
+        dest: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
+        force: false
+      when: smss_install_source_dir is not ansible.builtin.uri(schemes=['http', 'https'])
+
+    - name: Install SQL Server Management Studio
+      when: install_smss
+      ansible.windows.win_package:
+        path: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
+        product_id: "{{ ssms_product_id }}"
+        arguments: /install /passive /norestart
+
+    - name: Copy SQL install ISO via HTTP
+      ansible.windows.win_get_url:
+        url: "{{ sql_install_source_dir }}/{{ sql_install_iso }}"
         dest: "{{ sql_install_files_path }}\\{{ sql_install_iso }}"
         force: false
+      when: sql_install_source_dir is ansible.builtin.uri(schemes=['http', 'https'])
+
+    - name: Copy SQL install ISO from Ansible server
+      ansible.windows.win_copy:
+        src: "{{ playbook_dir }}/{{ sql_install_source_dir }}/{{ sql_install_iso }}"
+        dest: "{{ sql_install_files_path }}\\{{ sql_install_iso }}"
+        force: false
+      when: sql_install_source_dir is not ansible.builtin.uri(schemes=['http', 'https'])
 
     - name: Mount ISO
       community.windows.win_disk_image:
