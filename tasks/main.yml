@@ -1,8 +1,40 @@
 ---
-# - name: Assert mandatory variables have been set
-#   ansible.builtin.assert: { that: "{{ item }} is defined" }
-#   with_items:
-#     - SAPWD
+- name: Make sure required variables are defined
+  ansible.builtin.assert:
+    that:
+      - "lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=sql_sa_password) is defined"
+
+- name: Make sure password is defined for all SQL users
+  ansible.builtin.assert:
+    that:
+      - "lookup('ansible.builtin.env', user_env_var, default=user.password) is defined"
+    fail_msg: "Neither {{ user_env_var }} nor a password attribute is defined for {{ user.name }}"
+  loop: "{{ sql_users }}"
+  vars:
+    user_env_var: "SQL_{{ user.name | upper }}_PASSWORD"
+  loop_control:
+    loop_var: user
+
+- name: Query all defined local users
+  ansible.windows.win_user:
+    name: "{{ local_user }}"
+    state: query
+  when: local_user[0] == '.'
+  loop: "{{ dsc_sqlsysadminaccounts }}"
+  loop_control:
+    loop_var: local_user
+  register: local_users
+
+- name: Make sure all defined local users exist
+  ansible.builtin.assert:
+    that:
+      - local_user.state != 'absent'
+    fail_msg: "{{ local_user.local_user }} does not exist on {{ inventory_hostname }}"
+    quiet: true
+  when: local_user.local_user[0] == '.'
+  loop: "{{ local_users.results }}"
+  loop_control:
+    loop_var: local_user
 
 - name: Determine if the default instance exists.
   ansible.windows.win_service:
@@ -123,7 +155,7 @@
         SQLBackupDir: "{{ dsc_sqlbackupdir | default(omit) }}"
         SecurityMode: "{{ dsc_securitymode }}"
         SAPwd_username: sa
-        SAPwd_password: "{{ lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=dsc_sapwd) }}"
+        SAPwd_password: "{{ lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=sql_sa_password) }}"
         # DependsOn = '[WindowsFeature]NetFramework45'
       register: install_out
 
