@@ -114,7 +114,7 @@
         InstanceName: "{{ dsc_instancename }}"
         Features: "{{ dsc_features }}"
         SourcePath: "{{ disk_image_out.mount_paths[0] }}"
-        SQLSysAdminAccounts: "{{ dsc_sqlsyssdminaccounts | default(omit) }}"
+        SQLSysAdminAccounts: "{{ dsc_sqlsysadminaccounts | default(omit) }}"
         InstallSQLDataDir: "{{ dsc_installsqldatadir | default(omit) }}"
         SQLUserDBDir: "{{ dsc_sqluserdbdir | default(omit) }}"
         SQLUserDBLogDir: "{{ dsc_sqluserdblogdir | default(omit) }}"
@@ -144,6 +144,7 @@
         direction: in
         protocol: tcp
         state: present
+        profile: domain,private,public
         enabled: true
 
     - name: Create Users
