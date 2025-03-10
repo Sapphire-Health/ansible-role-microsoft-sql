@@ -9,3 +9,10 @@ dsc_securitymode: SQL
 
 mssql_psmodules: [SQLServerDsc, SqlServer, StorageDsc, ServerManager, dbatools, xNetworking]
 install_smss: true
+
+# Create SQL accounts
+sql_users:
+  - name: "{{ lookup('ansible.builtin.env', 'SQL_SPADMIN_USER', default='spadmin') }}"
+    # password: # can be defined as env var SQL_SPADMIN_PASSWORD=''
+  - name: "{{ lookup('ansible.builtin.env', 'SQL_SPUSER_USER', default='spuser') }}"
+    # password: # can be defined as env var SQL_SPUSER_PASSWORD=''
