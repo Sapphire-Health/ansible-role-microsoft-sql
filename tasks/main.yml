@@ -4,14 +4,30 @@
     that:
       - "lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=sql_sa_password) is defined"
 
+- name: Get all local SQL users
+  ansible.builtin.set_fact:
+    local_sql_users: "{{ local_sql_users | default([]) + [user.1] }}"
+  when: user.1 not in local_sql_users | default([]) and '\\' not in user.1
+  loop: "{{ sql_databases | subelements('users') }}"
+  loop_control:
+    loop_var: user
+
+- name: Get all domain SQL users
+  ansible.builtin.set_fact:
+    domain_sql_users: "{{ domain_sql_users | default([]) + [user.1] }}"
+  when: user.1 not in domain_sql_users | default([]) and '\\' in user.1
+  loop: "{{ sql_databases | subelements('users') }}"
+  loop_control:
+    loop_var: user
+
 - name: Make sure password is defined for all SQL users
   ansible.builtin.assert:
     that:
       - "lookup('ansible.builtin.env', user_env_var, default=user.password) is defined"
-    fail_msg: "Neither {{ user_env_var }} nor a password attribute is defined for {{ user.name }}"
-  loop: "{{ sql_users }}"
+    fail_msg: "Neither {{ user_env_var }} nor a password attribute is defined for {{ user }}"
+  loop: "{{ local_sql_users }}"
   vars:
-    user_env_var: "SQL_{{ user.name | upper }}_PASSWORD"
+    user_env_var: "SQL_{{ user | upper }}_PASSWORD"
   loop_control:
     loop_var: user
 
@@ -179,21 +195,32 @@
         profile: domain,private,public
         enabled: true
 
-    - name: Create Users
-      when: sql_users is defined
+    - name: Create local users
+      when: local_sql_users is defined and local_sql_users | length > 0
       ansible.windows.win_dsc:
         resource_name: SqlLogin
-        Name: "{{ user.name }}"
+        Name: "{{ user }}"
         InstanceName: "{{ dsc_instancename }}"
         LoginType: SqlLogin
         LoginMustChangePassword: false
         LoginPasswordExpirationEnabled: false
         LoginPasswordPolicyEnforced: false
-        LoginCredential_username: "{{ user.name }}"
-        LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var, default=user.password) }}"
-      loop: "{{ sql_users }}"
+        LoginCredential_username: "{{ user }}"
+        LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var) }}"
+      loop: "{{ local_sql_users }}"
       vars:
-        user_env_var: "SQL_{{ user.name | upper }}_PASSWORD"
+        user_env_var: "SQL_{{ user | upper }}_PASSWORD"
+      loop_control:
+        loop_var: user
+
+    - name: Create domain users
+      when: domain_sql_users is defined and domain_sql_users | length > 0
+      ansible.windows.win_dsc:
+        resource_name: SqlLogin
+        Name: "{{ user }}"
+        InstanceName: "{{ dsc_instancename }}"
+        LoginType: WindowsUser
+      loop: "{{ domain_sql_users }}"
       loop_control:
         loop_var: user
 
