@@ -67,13 +67,6 @@
 - name: Begin SQL Install Task
   when: not service_info.exists
   block:
-    # this task is required because of this https://github.com/ansible-collections/community.windows/issues/147#issuecomment-1989425640
-    # regarding the following task. I expect it to be fixed in a future release of the community.windows collection
-    # TODO: remove this task and test if the following task works without it when a new release
-    # of community.windows collection > 2.3.0 is available
-    # - name: Ensure the required NuGet package provider version is installed
-    #   ansible.windows.win_shell: Find-PackageProvider -Name Nuget -ForceBootstrap -IncludeDependencies -Force
-
     # Load required powershell modules
     - name: Check for SQLServer DSC Powershell module
       community.windows.win_psmodule:
