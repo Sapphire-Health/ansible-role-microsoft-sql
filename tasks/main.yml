@@ -8,7 +8,8 @@
   ansible.builtin.set_fact:
     local_sql_users: "{{ local_sql_users | default([]) + [user.1] }}"
   when: user.1 not in local_sql_users | default([]) and '\\' not in user.1
-  loop: "{{ sql_databases | subelements('users') }}"
+  loop: "{{ query('ansible.builtin.subelements', sql_databases, 'users', {'skip_missing': True}) }}"
+  # loop: "{{ sql_databases | subelements('users') }}"
   loop_control:
     loop_var: user
 
@@ -16,7 +17,7 @@
   ansible.builtin.set_fact:
     domain_sql_users: "{{ domain_sql_users | default([]) + [user.1] }}"
   when: user.1 not in domain_sql_users | default([]) and '\\' in user.1
-  loop: "{{ sql_databases | subelements('users') }}"
+  loop: "{{ query('ansible.builtin.subelements', sql_databases, 'users', {'skip_missing': True}) }}"
   loop_control:
     loop_var: user
 
@@ -25,7 +26,7 @@
     that:
       - "lookup('ansible.builtin.env', user_env_var, default=user.password) is defined"
     fail_msg: "Neither {{ user_env_var }} nor a password attribute is defined for {{ user }}"
-  loop: "{{ local_sql_users }}"
+  loop: "{{ local_sql_users | default([]) }}"
   vars:
     user_env_var: "SQL_{{ user | upper }}_PASSWORD"
   loop_control:
@@ -200,7 +201,7 @@
         LoginPasswordPolicyEnforced: false
         LoginCredential_username: "{{ user }}"
         LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var) }}"
-      loop: "{{ local_sql_users }}"
+      loop: "{{ local_sql_users | default([]) }}"
       vars:
         user_env_var: "SQL_{{ user | upper }}_PASSWORD"
       loop_control:
@@ -213,7 +214,7 @@
         Name: "{{ user }}"
         InstanceName: "{{ dsc_instancename }}"
         LoginType: WindowsUser
-      loop: "{{ domain_sql_users }}"
+      loop: "{{ domain_sql_users | default([]) }}"
       loop_control:
         loop_var: user
 

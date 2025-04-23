@@ -9,3 +9,5 @@ dsc_securitymode: SQL
 
 mssql_psmodules: [SQLServerDsc, SqlServer, StorageDsc, ServerManager, dbatools, xNetworking]
 install_smss: true
+
+sql_databases: []
