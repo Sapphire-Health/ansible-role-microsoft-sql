@@ -117,13 +117,6 @@
         force: false
       when: smss_install_source_dir is not ansible.builtin.uri(schemes=['http', 'https'])
 
-    - name: Install SQL Server Management Studio
-      when: install_smss
-      ansible.windows.win_package:
-        path: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
-        product_id: "{{ ssms_product_id }}"
-        arguments: /install /passive /norestart
-
     - name: Copy SQL install ISO via HTTP
       ansible.windows.win_get_url:
         url: "{{ sql_install_source_dir }}/{{ sql_install_iso }}"
@@ -188,6 +181,13 @@
         state: present
         profile: domain,private,public
         enabled: true
+
+    - name: Install SQL Server Management Studio
+      when: install_smss
+      ansible.windows.win_package:
+        path: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
+        product_id: "{{ ssms_product_id }}"
+        arguments: /install /passive /norestart
 
     - name: Create local users
       when: local_sql_users is defined and local_sql_users | length > 0
