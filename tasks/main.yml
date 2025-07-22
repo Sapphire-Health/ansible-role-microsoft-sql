@@ -159,6 +159,10 @@
         SecurityMode: "{{ dsc_securitymode }}"
         SAPwd_username: sa
         SAPwd_password: "{{ lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=sql_sa_password) }}"
+#        AgtSvcAccount_username: "{{ dsc_agtsvcaccount | default(omit) }}"
+#        AgtSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
+#        SQLSvcAccount_username: "{{ dsc_sqlsvcaccount | default(omit) }}"
+#        SQLSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
         # DependsOn = '[WindowsFeature]NetFramework45'
       register: install_out
 
