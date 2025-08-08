@@ -55,7 +55,7 @@
 
 - name: Determine if the default instance exists.
   ansible.windows.win_service:
-    name: 'MSSQLSERVER'
+    name: "{{ dsc_instancename }}"
   register: service_info
 
 - name: End play if default instance already exists.
@@ -178,6 +178,7 @@
         SecurityMode: "{{ dsc_securitymode }}"
         SAPwd_username: sa
         SAPwd_password: "{{ lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=sql_sa_password) }}"
+        TcpEnabled: true
 #        AgtSvcAccount_username: "{{ dsc_agtsvcaccount | default(omit) }}"
 #        AgtSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
 #        SQLSvcAccount_username: "{{ dsc_sqlsvcaccount | default(omit) }}"
@@ -194,6 +195,20 @@
       community.windows.win_disk_image:
         image_path: "{{ sql_install_files_path }}\\{{ sql_install_iso }}"
         state: absent
+
+    # - name: Enable SQL Server TCP/IP Protocol
+    #   ansible.windows.win_dsc:
+    #     resource_name: SqlProtocol
+    #     InstanceName: "{{ dsc_instancename }}"
+    #     Enabled: true
+    #     ProtocolName: TcpIp
+
+    # - name: Configure SQL Server TCP/IP Protocol
+    #   ansible.windows.win_dsc:
+    #     resource_name: SqlProtocolTcpIP
+    #     InstanceName: "{{ dsc_instancename }}"
+    #     IpAddressGroup: "IPAll"
+    #     TcpPort: "1433"
 
     - name: Firewall rule to allow SQL on TCP port 1433 and 1434
       community.windows.win_firewall_rule:
