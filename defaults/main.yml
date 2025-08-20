@@ -6,6 +6,8 @@ dsc_action: Install
 dsc_instancename: MSSQLSERVER
 dsc_features: SQLENGINE
 dsc_securitymode: SQL
+dsc_sqltempdbdir: T:\TempDB
+dsc_sqltempdblogdir: T:\TempDB
 
 mssql_psmodules: [SQLServerDsc, SqlServer, StorageDsc, ServerManager, dbatools, xNetworking]
 install_smss: true
