@@ -82,8 +82,8 @@
         state: present
       tags: install_mssql
       with_items:
-        - NET-Framework-Core
-        - NET-Framework-Features
+        # - NET-Framework-Core
+        # - NET-Framework-Features
         - NET-Framework-45-Features
         - WAS
 
