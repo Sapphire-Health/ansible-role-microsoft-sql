@@ -84,7 +84,7 @@
       with_items:
         # - NET-Framework-Core
         # - NET-Framework-Features
-        - NET-Framework-45-Features
+        # - NET-Framework-45-Features
         - WAS
 
     # - name: Ensure that a reboot is not pending
