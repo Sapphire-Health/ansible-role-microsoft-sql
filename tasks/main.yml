@@ -226,7 +226,7 @@
       ansible.windows.win_package:
         path: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
         product_id: "{{ ssms_product_id }}"
-        arguments: /install /passive /norestart
+        arguments: --quiet --norestart --wait
 
     - name: Create local users
       when: local_sql_users is defined and local_sql_users | length > 0
