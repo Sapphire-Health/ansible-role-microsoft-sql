@@ -225,7 +225,7 @@
       when: install_smss
       ansible.windows.win_package:
         path: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
-        # product_id: "{{ ssms_product_id }}"
+        creates_path: "C:\\Program Files\\Microsoft SQL Server Management Studio 22\\Release\\Common7\\IDE\\SSMS.exe"
         arguments: --quiet --norestart --wait
 
     - name: Create local users
