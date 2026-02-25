@@ -112,7 +112,7 @@
 
     - name: Copy SMSS install file from Ansible server
       ansible.windows.win_copy:
-        src: "{{ playbook_dir }}/{{ smss_install_source_dir }}/{{ smss_install_file }}"
+        src: "{{ smss_install_source_dir }}/{{ smss_install_file }}"
         dest: "{{ sql_install_files_path }}\\{{ smss_install_file }}"
         force: false
       when: smss_install_source_dir is not ansible.builtin.uri(schemes=['http', 'https'])
@@ -126,7 +126,7 @@
 
     - name: Copy SQL install ISO from Ansible server
       ansible.windows.win_copy:
-        src: "{{ playbook_dir }}/{{ sql_install_source_dir }}/{{ sql_install_iso }}"
+        src: "{{ sql_install_source_dir }}/{{ sql_install_iso }}"
         dest: "{{ sql_install_files_path }}\\{{ sql_install_iso }}"
         force: false
       when: sql_install_source_dir is not ansible.builtin.uri(schemes=['http', 'https'])
