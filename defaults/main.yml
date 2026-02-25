@@ -1,4 +1,5 @@
 ---
+sql_install_source_dir: "{{ shared_files_directory }}"
 sql_install_files_path: 'C:\temp'
 
 dsc_resource_name: SQLSetup
