@@ -179,6 +179,7 @@
         SAPwd_username: sa
         SAPwd_password: "{{ lookup('ansible.builtin.env', 'SQL_SA_PASSWORD', default=sql_sa_password) }}"
         TcpEnabled: true
+        ProductKey: "{{ lookup('ansible.builtin.env', 'SQL_LICENSE_KEY') | default(sql_license_key, true) | default(omit) }}"
 #        AgtSvcAccount_username: "{{ dsc_agtsvcaccount | default(omit) }}"
 #        AgtSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
 #        SQLSvcAccount_username: "{{ dsc_sqlsvcaccount | default(omit) }}"
