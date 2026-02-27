@@ -41,11 +41,13 @@ jobs:
           echo "Repository name: $REPO_NAME"
           echo "Role name: $ROLE_NAME"
 
-          mkdir -p project_root/roles/$ROLE_NAME
+          # Create staging root OUTSIDE repo contents
+          mkdir -p ../project_root/roles/$ROLE_NAME
 
-          # Copy repo contents into roles/<role>
           shopt -s dotglob
-          cp -r * project_root/roles/$ROLE_NAME/
+          cp -r . ../project_root/roles/$ROLE_NAME/
+
+          mv ../project_root ./project_root
 
       # ---------------------------------------
       # Run ansible-lint from project root
