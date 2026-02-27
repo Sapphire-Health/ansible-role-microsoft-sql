@@ -36,16 +36,20 @@ jobs:
           set -e
 
           REPO_NAME=$(basename "$GITHUB_REPOSITORY")
+
+          # Remove repo prefix
           ROLE_NAME="${REPO_NAME#ansible-role-}"
 
-          echo "Repository name: $REPO_NAME"
-          echo "Role name: $ROLE_NAME"
+          # Convert hyphens -> underscores (Galaxy compliant)
+          ROLE_NAME="${ROLE_NAME//-/_}"
 
-          # Create staging root OUTSIDE repo contents
+          echo "Repository name: $REPO_NAME"
+          echo "Galaxy role directory: $ROLE_NAME"
+
           mkdir -p ../project_root/roles/$ROLE_NAME
 
-          shopt -s dotglob
-          cp -r . ../project_root/roles/$ROLE_NAME/
+          # Copy repo contents safely
+          cp -a . ../project_root/roles/$ROLE_NAME/
 
           mv ../project_root ./project_root
 
