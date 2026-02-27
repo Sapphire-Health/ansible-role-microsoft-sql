@@ -1,5 +1,5 @@
 ---
-microsoft_sql_install_source_dir: "{{ shared_files_directory }}"
+test_microsoft_sql_install_source_dir: "{{ shared_files_directory }}"
 microsoft_sql_temp_dir: C:/Windows/Temp/sql_install
 
 microsoft_sql_smss_install_source_dir: https://aka.ms/ssms/22/release
