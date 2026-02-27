@@ -1,19 +1,24 @@
 ---
-sql_install_source_dir: "{{ shared_files_directory }}"
-sql_install_files_path: 'C:\temp'
+microsoft_sql_install_source_dir: "{{ shared_files_directory }}"
+microsoft_sql_temp_dir: C:/Windows/Temp/sql_install
 
-dsc_resource_name: SQLSetup
-dsc_action: Install
-dsc_instancename: MSSQLSERVER
-dsc_features: SQLENGINE
-dsc_securitymode: SQL
-dsc_sqltempdbdir: T:\TempDB
-dsc_sqltempdblogdir: T:\TempDB
+microsoft_sql_smss_install_source_dir: https://aka.ms/ssms/22/release
+microsoft_sql_smss_install_source_file: vs_SSMS.exe
 
-mssql_psmodules: [SQLServerDsc, SqlServer, StorageDsc, ServerManager, dbatools, xNetworking]
-install_smss: true
+microsoft_sql_force_download: false
 
-sql_databases: []
+microsoft_sql_dsc_resource_name: SQLSetup
+microsoft_sql_dsc_action: Install
+microsoft_sql_dsc_instancename: MSSQLSERVER
+microsoft_sql_dsc_features: SQLENGINE
+microsoft_sql_dsc_securitymode: SQL
+microsoft_sql_dsc_sqltempdbdir: T:\TempDB
+microsoft_sql_dsc_sqltempdblogdir: T:\TempDB
 
-smss_install_source_dir: https://aka.ms/ssms/22/release
-smss_install_file: vs_SSMS.exe
+microsoft_sql_install_psmodules: [SQLServerDsc, SqlServer, StorageDsc, ServerManager, dbatools, xNetworking]
+microsoft_sql_install_smss: true
+
+microsoft_sql_databases: []
+
+microsoft_sql_delete_temp_dir: true
+microsoft_sql_skip_storage_check: false

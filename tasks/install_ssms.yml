@@ -1,0 +1,45 @@
+---
+- name: Run tasks
+  tags:
+    - always
+  block:
+    - name: Ensure temp directory exists
+      ansible.windows.win_file:
+        # microsoft_sql_temp_dir: 'C:\temp'
+        path: "{{ microsoft_sql_temp_dir }}"
+        state: directory
+
+    - name: Check if install file exists
+      ansible.windows.win_stat:
+        path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_smss_install_source_file }}"
+      register: microsoft_sql_install_file
+
+    - name: Get install file
+      when: not microsoft_sql_install_file.stat.exists or microsoft_sql_force_download
+      block:
+        - name: Copy SMSS install file via HTTP
+          ansible.windows.win_get_url:
+            url: "{{ microsoft_sql_smss_install_source_dir }}/{{ smss_install_file }}"
+            dest: "{{ microsoft_sql_temp_dir }}\\{{ smss_install_file }}"
+            force: false
+          when: microsoft_sql_smss_install_source_dir is ansible.builtin.uri(schemes=['http', 'https'])
+
+        - name: Copy SMSS install file from Ansible server
+          ansible.windows.win_copy:
+            src: "{{ microsoft_sql_smss_install_source_dir }}/{{ smss_install_file }}"
+            dest: "{{ microsoft_sql_temp_dir }}\\{{ smss_install_file }}"
+            force: false
+          when: microsoft_sql_smss_install_source_dir is not ansible.builtin.uri(schemes=['http', 'https'])
+
+        - name: Install SQL Server Management Studio
+          ansible.windows.win_package:
+            path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_smss_install_source_file }}"
+            creates_path: "C:\\Program Files\\Microsoft SQL Server Management Studio 22\\Release\\Common7\\IDE\\SSMS.exe"
+            arguments: --quiet --norestart --wait
+
+  always:
+    - name: Delete temporary directory
+      ansible.windows.win_file:
+        path: "{{ microsoft_sql_temp_dir }}"
+        state: absent
+      when: microsoft_sql_delete_temp_dir
