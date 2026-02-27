@@ -105,7 +105,7 @@
         SQLTempDBDir: "{{ microsoft_sql_dsc_sqltempdbdir | default(omit) }}"
         SQLTempDBLogDir: "{{ microsoft_sql_dsc_sqltempdblogdir | default(omit) }}"
         SQLBackupDir: "{{ microsoft_sql_dsc_sqlbackupdir | default(omit) }}"
-        SecurityMode: "{{ test_microsoft_sql_dsc_securitymode }}"
+        SecurityMode: "{{ microsoft_sql_dsc_securitymode }}"
         SAPwd_username: sa
         SAPwd_password: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD', default=microsoft_sql_sa_password) }}"
         TcpEnabled: true
