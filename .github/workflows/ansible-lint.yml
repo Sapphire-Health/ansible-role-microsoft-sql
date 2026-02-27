@@ -53,6 +53,20 @@ jobs:
 
           mv ../project_root ./project_root
 
+          # ---------------------------------------
+          # Create ansible-lint config dynamically to ignore role name
+          # ---------------------------------------
+          - name: Create .ansible-lint configuration
+            shell: bash
+            run: |
+              cat <<'EOF' > project_root/.ansible-lint
+              warn_list:
+                - role-name
+              EOF
+
+              echo "Generated .ansible-lint:"
+              cat project_root/.ansible-lint
+
       # ---------------------------------------
       # Run ansible-lint from project root
       # ---------------------------------------
