@@ -1,0 +1,76 @@
+name: Add Issues/PRs to Cloud Team Project
+
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches-ignore:
+      - master
+  workflow_dispatch:
+
+jobs:
+  ansible-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible + ansible-lint
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible ansible-lint
+
+      # ---------------------------------------
+      # Build expected ansible-lint structure
+      # ---------------------------------------
+      - name: Prepare role directory structure
+        shell: bash
+        run: |
+          set -e
+
+          REPO_NAME=$(basename "$GITHUB_REPOSITORY")
+
+          # Remove repo prefix
+          ROLE_NAME="${REPO_NAME#ansible-role-}"
+
+          # Convert hyphens -> underscores (Galaxy compliant)
+          ROLE_NAME="${ROLE_NAME//-/_}"
+
+          echo "Repository name: $REPO_NAME"
+          echo "Galaxy role directory: $ROLE_NAME"
+
+          mkdir -p ../project_root/roles/$ROLE_NAME
+
+          # Copy repo contents safely
+          cp -a . ../project_root/roles/$ROLE_NAME/
+
+          mv ../project_root ./project_root
+
+      # ---------------------------------------
+      # Create ansible-lint config dynamically to ignore role name
+      # ---------------------------------------
+      - name: Create .ansible-lint configuration
+        shell: bash
+        run: |
+          cat <<'EOF' > project_root/.ansible-lint
+          warn_list:
+            - role-name
+          EOF
+
+          echo "Generated .ansible-lint:"
+          cat project_root/.ansible-lint
+
+      # ---------------------------------------
+      # Run ansible-lint from project root
+      # ---------------------------------------
+      - name: Run ansible-lint
+        run: |
+          cd project_root
+          ansible-lint

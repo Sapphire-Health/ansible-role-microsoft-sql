@@ -1,0 +1,82 @@
+---
+- name: Run tasks
+  tags:
+    - always
+  block:
+    - name: Get all local SQL users
+      ansible.builtin.set_fact:
+        microsoft_sql_local_sql_users: "{{ microsoft_sql_local_sql_users | default([]) + [user.1] }}"
+      when: user.1 not in microsoft_sql_local_sql_users | default([]) and '\\' not in user.1
+      loop: "{{ query('ansible.builtin.subelements', sql_databases, 'users', {'skip_missing': True}) }}"
+      # loop: "{{ sql_databases | subelements('users') }}"
+      loop_control:
+        loop_var: user
+
+    - name: Get all domain SQL users
+      ansible.builtin.set_fact:
+        microsoft_sql_domain_sql_users: "{{ microsoft_sql_domain_sql_users | default([]) + [user.1] }}"
+      when: user.1 not in microsoft_sql_domain_sql_users | default([]) and '\\' in user.1
+      loop: "{{ query('ansible.builtin.subelements', sql_databases, 'users', {'skip_missing': True}) }}"
+      loop_control:
+        loop_var: user
+
+    - name: Make sure password is defined for all SQL users
+      ansible.builtin.assert:
+        that:
+          - "lookup('ansible.builtin.env', user_env_var, default=user.password) is defined"
+        fail_msg: "Neither {{ user_env_var }} nor a password attribute is defined for {{ user }}"
+      loop: "{{ microsoft_sql_local_sql_users | default([]) }}"
+      vars:
+        user_env_var: "MICROSOFT_SQL_{{ user | upper }}_PASSWORD"
+      loop_control:
+        loop_var: user
+
+    - name: Query all defined local users
+      ansible.windows.win_user:
+        name: "{{ microsoft_sql_local_user }}"
+        state: query
+      when: microsoft_sql_local_user[0] == '.'
+      loop: "{{ microsoft_sql_dsc_sqlsysadminaccounts }}"
+      loop_control:
+        loop_var: microsoft_sql_local_user
+      register: microsoft_sql_defined_microsoft_sql_local_users
+
+    - name: Make sure all defined local users exist
+      ansible.builtin.assert:
+        that:
+          - microsoft_sql_local_user.state != 'absent'
+        fail_msg: "{{ microsoft_sql_local_user.microsoft_sql_local_user }} does not exist on {{ inventory_hostname }}"
+        quiet: true
+      when: microsoft_sql_local_user.microsoft_sql_local_user[0] == '.'
+      loop: "{{ microsoft_sql_defined_microsoft_sql_local_users.results }}"
+      loop_control:
+        loop_var: microsoft_sql_local_user
+
+    - name: Create local users
+      when: microsoft_sql_local_sql_users is defined and microsoft_sql_local_sql_users | length > 0
+      ansible.windows.win_dsc:
+        resource_name: SqlLogin
+        Name: "{{ user }}"
+        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+        LoginType: SqlLogin
+        LoginMustChangePassword: false
+        LoginPasswordExpirationEnabled: false
+        LoginPasswordPolicyEnforced: false
+        LoginCredential_username: "{{ user }}"
+        LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var) }}"
+      loop: "{{ microsoft_sql_local_sql_users | default([]) }}"
+      vars:
+        user_env_var: "SQL_{{ user | upper }}_PASSWORD"
+      loop_control:
+        loop_var: user
+
+    - name: Create domain users
+      when: microsoft_sql_domain_sql_users is defined and microsoft_sql_domain_sql_users | length > 0
+      ansible.windows.win_dsc:
+        resource_name: SqlLogin
+        Name: "{{ user }}"
+        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+        LoginType: WindowsUser
+      loop: "{{ microsoft_sql_domain_sql_users | default([]) }}"
+      loop_control:
+        loop_var: user

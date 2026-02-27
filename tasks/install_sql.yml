@@ -1,0 +1,135 @@
+---
+- name: Run tasks
+  tags:
+    - always
+  block:
+    - name: Make sure required variables are defined
+      ansible.builtin.assert:
+        that:
+          - "lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD', default=microsoft_sql_sa_password) is defined"
+
+    - name: Check storage
+      when: not microsoft_sql_skip_storage_check
+      block:
+        - name: Get Windows disks
+          community.windows.win_disk_facts:
+          register: microsoft_sql_windows_disks
+
+        - name: Get total partitions
+          ansible.builtin.set_fact:
+            microsoft_sql_server_partition_count: "{{ microsoft_sql_server_partition_count | default(0) | int + item.partition_count }}"
+          loop: "{{ microsoft_sql_windows_disks.ansible_facts.ansible_disks }}"
+          loop_control:
+            label: "Examining disk {{ item.number }}"
+
+        - name: Show partition count
+          ansible.builtin.debug:
+            msg: "Total partitions found: {{ microsoft_sql_server_partition_count }}"
+
+        - name: Storage check failed
+          ansible.builtin.fail:
+            msg: >
+              Only {{ microsoft_sql_server_partition_count }} partition(s) were found.
+              Please provision storage for SQL Server installation or set microsoft_sql_skip_storage_check to true to skip this check.
+          when: microsoft_sql_server_partition_count | int < 2
+
+    - name: Ensure temp directory exists
+      ansible.windows.win_file:
+        # sql_install_files_path: 'C:\temp'
+        path: "{{ microsoft_sql_temp_dir }}"
+        state: directory
+
+    - name: Check if install file exists
+      ansible.windows.win_stat:
+        path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
+      register: microsoft_sql_install_file
+
+    - name: Get install file
+      when: not microsoft_sql_install_file.stat.exists or microsoft_sql_force_download
+      block:
+        - name: Copy SQL install file via HTTP
+          ansible.windows.win_get_url:
+            url: "{{ microsoft_sql_install_source_dir }}/{{ microsoft_sql_install_source_file }}"
+            dest: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
+            force: false
+          when: microsoft_sql_install_source_dir is ansible.builtin.uri(schemes=['http', 'https'])
+
+        - name: Copy SQL install file from Ansible server
+          ansible.windows.win_copy:
+            src: "{{ microsoft_sql_install_source_dir }}/{{ microsoft_sql_install_source_file }}"
+            dest: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
+            force: false
+          when: microsoft_sql_install_source_dir is not ansible.builtin.uri(schemes=['http', 'https'])
+
+    - name: Mount ISO if SQL install is an ISO file
+      when: microsoft_sql_install_source_file.split('.')[-1] | lower == 'iso'
+      block:
+        - name: Mount ISO
+          community.windows.win_disk_image:
+            image_path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
+            state: present
+          register: microsoft_sql_disk_image_out
+
+        - name: Debug microsoft_sql_disk_image_out
+          ansible.builtin.debug:
+            var: microsoft_sql_disk_image_out.mount_paths[0]
+
+        - name: Set SQL install source path
+          ansible.builtin.set_fact:
+            microsoft_sql_install_source_path: "{{ microsoft_sql_disk_image_out.mount_paths[0] }}"
+
+    - name: Extract SQL install source path when not an ISO
+      when: microsoft_sql_install_source_file.split('.')[-1] | lower != 'iso'
+      block:
+        - name: Set SQL install source path when not an ISO
+          ansible.builtin.set_fact:
+            microsoft_sql_install_source_path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file.split('.')[:-1] | join('.') }}"
+          when: microsoft_sql_install_source_file.split('.')[-1] | lower != 'iso'
+
+        - name: Extract SQL install
+          ansible.windows.win_command:
+            cmd: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }} /q /x:{{ microsoft_sql_install_source_path }}"
+
+    # https://github.com/dsccommunity/SqlServerDsc/wiki/SqlSetup
+    - name: Install SQL Server
+      ansible.windows.win_dsc:
+        resource_name: SQLSetup
+        Action: "{{ microsoft_sql_dsc_action }}"
+        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+        Features: "{{ microsoft_sql_dsc_features }}"
+        SourcePath: "{{ microsoft_sql_install_source_path }}"
+        SQLSysAdminAccounts: "{{ microsoft_sql_dsc_sqlsysadminaccounts | default(omit) }}"
+        InstallSQLDataDir: "{{ microsoft_sql_dsc_installsqldatadir | default(omit) }}"
+        SQLUserDBDir: "{{ microsoft_sql_dsc_sqluserdbdir | default(omit) }}"
+        SQLUserDBLogDir: "{{ microsoft_sql_dsc_sqluserdblogdir | default(omit) }}"
+        SQLTempDBDir: "{{ microsoft_sql_dsc_sqltempdbdir | default(omit) }}"
+        SQLTempDBLogDir: "{{ microsoft_sql_dsc_sqltempdblogdir | default(omit) }}"
+        SQLBackupDir: "{{ microsoft_sql_dsc_sqlbackupdir | default(omit) }}"
+        SecurityMode: "{{ microsoft_sql_dsc_securitymode }}"
+        SAPwd_username: sa
+        SAPwd_password: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD', default=microsoft_sql_sa_password) }}"
+        TcpEnabled: true
+        ProductKey: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_LICENSE_KEY') | default(microsoft_sql_license_key, true) | default(omit) }}"
+#        AgtSvcAccount_username: "{{ microsoft_sql_dsc_agtsvcaccount | default(omit) }}"
+#        AgtSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
+#        SQLSvcAccount_username: "{{ microsoft_sql_dsc_sqlsvcaccount | default(omit) }}"
+#        SQLSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
+        # DependsOn = '[WindowsFeature]NetFramework45'
+      register: microsoft_sql_install_out
+
+    - name: Debug install
+      ansible.builtin.debug:
+        var: microsoft_sql_install_out
+
+  always:
+    - name: Unmount ISO
+      when: disk_image_out is defined and microsoft_sql_install_source_file.split('.')[-1] | lower == 'iso'
+      community.windows.win_disk_image:
+        image_path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
+        state: absent
+
+    - name: Delete temporary directory
+      ansible.windows.win_file:
+        path: "{{ microsoft_sql_temp_dir }}"
+        state: absent
+      when: microsoft_sql_delete_temp_dir

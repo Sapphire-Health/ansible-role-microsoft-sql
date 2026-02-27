@@ -1,0 +1,15 @@
+---
+- name: Run tasks
+  tags:
+    - always
+  block:
+    - name: Firewall rule to allow SQL on TCP port 1433 and 1434
+      community.windows.win_firewall_rule:
+        name: Microsoft SQL Server
+        localport: 1433-1434
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        profile: domain,private,public
+        enabled: true
