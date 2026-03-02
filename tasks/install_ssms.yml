@@ -43,4 +43,4 @@
         path: "{{ microsoft_sql_temp_dir }}"
         state: absent
       when: microsoft_sql_delete_temp_dir
-      ignore_errors: true
+      failed_when: false

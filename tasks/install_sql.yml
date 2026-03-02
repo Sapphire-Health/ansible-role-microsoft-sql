@@ -127,11 +127,11 @@
       community.windows.win_disk_image:
         image_path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
         state: absent
-      ignore_errors: true
+      failed_when: false
 
     - name: Delete temporary directory
       ansible.windows.win_file:
         path: "{{ microsoft_sql_temp_dir }}"
         state: absent
       when: microsoft_sql_delete_temp_dir
-      ignore_errors: true
+      failed_when: false
