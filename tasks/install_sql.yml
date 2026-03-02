@@ -123,7 +123,7 @@
 
   always:
     - name: Unmount ISO
-      when: disk_image_out is defined and microsoft_sql_install_source_file.split('.')[-1] | lower == 'iso'
+      when: microsoft_sql_disk_image_out is defined and microsoft_sql_install_source_file.split('.')[-1] | lower == 'iso'
       community.windows.win_disk_image:
         image_path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
         state: absent
