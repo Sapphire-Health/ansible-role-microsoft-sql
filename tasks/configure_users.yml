@@ -7,7 +7,7 @@
       ansible.builtin.set_fact:
         microsoft_sql_local_sql_users: "{{ microsoft_sql_local_sql_users | default([]) + [user.1] }}"
       when: user.1 not in microsoft_sql_local_sql_users | default([]) and '\\' not in user.1
-      loop: "{{ query('ansible.builtin.subelements', sql_databases, 'users', {'skip_missing': True}) }}"
+      loop: "{{ query('ansible.builtin.subelements', microsoft_sql_databases, 'users', {'skip_missing': True}) }}"
       # loop: "{{ sql_databases | subelements('users') }}"
       loop_control:
         loop_var: user
@@ -16,7 +16,7 @@
       ansible.builtin.set_fact:
         microsoft_sql_domain_sql_users: "{{ microsoft_sql_domain_sql_users | default([]) + [user.1] }}"
       when: user.1 not in microsoft_sql_domain_sql_users | default([]) and '\\' in user.1
-      loop: "{{ query('ansible.builtin.subelements', sql_databases, 'users', {'skip_missing': True}) }}"
+      loop: "{{ query('ansible.builtin.subelements', microsoft_sql_databases, 'users', {'skip_missing': True}) }}"
       loop_control:
         loop_var: user
 
