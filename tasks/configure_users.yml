@@ -66,7 +66,7 @@
         LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var) }}"
       loop: "{{ microsoft_sql_local_sql_users | default([]) }}"
       vars:
-        user_env_var: "SQL_{{ user | upper }}_PASSWORD"
+        user_env_var: "MICROSOFT_SQL_{{ user | upper }}_PASSWORD"
       loop_control:
         loop_var: user
 
