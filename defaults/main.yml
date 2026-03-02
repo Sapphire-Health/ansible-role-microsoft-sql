@@ -21,4 +21,4 @@ microsoft_sql_install_smss: true
 microsoft_sql_databases: []
 
 microsoft_sql_delete_temp_dir: true
-microsoft_sql_skip_storage_check: false
+microsoft_sql_storage_check: true

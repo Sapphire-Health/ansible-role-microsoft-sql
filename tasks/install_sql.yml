@@ -9,7 +9,7 @@
           - "lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD', default=microsoft_sql_sa_password) is defined"
 
     - name: Check storage
-      when: not microsoft_sql_skip_storage_check
+      when: microsoft_sql_storage_check
       block:
         - name: Get Windows disks
           community.windows.win_disk_facts:
@@ -127,9 +127,11 @@
       community.windows.win_disk_image:
         image_path: "{{ microsoft_sql_temp_dir }}\\{{ microsoft_sql_install_source_file }}"
         state: absent
+      ignore_errors: true
 
     - name: Delete temporary directory
       ansible.windows.win_file:
         path: "{{ microsoft_sql_temp_dir }}"
         state: absent
       when: microsoft_sql_delete_temp_dir
+      ignore_errors: true
