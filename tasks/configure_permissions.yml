@@ -1,0 +1,28 @@
+---
+- name: Run tasks
+  tags:
+    - always
+  block:
+    - name: Add Users to SQL Databases
+      ansible.windows.win_dsc:
+        resource_name: SqlDatabaseUser
+        DatabaseName: "{{ db.0.name }}"
+        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+        Name: "{{ db.1 }}"
+        UserType: Login
+        LoginName: "{{ db.1 }}"
+      loop: "{{ microsoft_sql_databases | subelements('users') }}"
+      loop_control:
+        loop_var: db
+
+    - name: Add Users to Roles on SQL Databases
+      ansible.windows.win_dsc:
+        resource_name: SqlDatabaseRole
+        DatabaseName: "{{ db.0.name }}"
+        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+        Name: "{{ db.1.name }}"
+        MembersToInclude: "{{ db.1.members }}"
+        Ensure: Present
+      loop: "{{ microsoft_sql_databases | subelements('roles') }}"
+      loop_control:
+        loop_var: db

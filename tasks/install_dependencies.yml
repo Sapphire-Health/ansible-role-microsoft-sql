@@ -1,0 +1,19 @@
+---
+- name: Run tasks
+  tags:
+    - always
+  block:
+    - name: Install required Powershell modules
+      community.windows.win_psmodule:
+        name: "{{ item }}"
+        accept_license: true
+        state: present
+      loop: "{{ microsoft_sql_install_psmodules }}"
+
+    - name: Install required Windows features
+      ansible.windows.win_feature:
+        name: "{{ item }}"
+        state: present
+      tags: install_mssql
+      loop:
+        - WAS
