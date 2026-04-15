@@ -33,3 +33,9 @@
     file: configure_databases.yml
   tags:
     - sql_databases
+
+- name: Configure SQL permissions
+  ansible.builtin.include_tasks:
+    file: configure_permissions.yml
+  tags:
+    - sql_permissions
