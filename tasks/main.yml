@@ -19,6 +19,7 @@
 - name: Install SQL Server Management Studio (SSMS)
   ansible.builtin.include_tasks:
     file: install_ssms.yml
+  when: microsoft_sql_install_smss
   tags:
     - install_ssms
 
