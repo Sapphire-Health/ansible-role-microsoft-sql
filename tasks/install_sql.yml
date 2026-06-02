@@ -116,6 +116,22 @@
       ansible.builtin.debug:
         var: microsoft_sql_install_out
 
+    # SqlSetup only sets the sa password during the initial install, so enforce
+    # it here on every run to keep it in sync with the configured value.
+    - name: Ensure sa password matches the configured value
+      ansible.windows.win_dsc:
+        resource_name: SqlLogin
+        Name: sa
+        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+        LoginType: SqlLogin
+        LoginMustChangePassword: false
+        LoginPasswordExpirationEnabled: false
+        LoginPasswordPolicyEnforced: false
+        LoginCredential_username: sa
+        LoginCredential_password: >-
+          {{ microsoft_sql_sa_password
+          | default(lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD'), true) }}
+
   always:
     - name: Unmount ISO
       when: microsoft_sql_disk_image_out is defined and microsoft_sql_install_source_file.split('.')[-1] | lower == 'iso'
