@@ -7,7 +7,6 @@ microsoft_sql_smss_install_source_file: vs_SSMS.exe
 
 microsoft_sql_force_download: false
 
-microsoft_sql_dsc_resource_name: SQLSetup
 microsoft_sql_dsc_action: Install
 microsoft_sql_dsc_instancename: MSSQLSERVER
 microsoft_sql_dsc_features: SQLENGINE
