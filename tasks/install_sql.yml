@@ -110,11 +110,16 @@
         SAPwd_password: "{{ microsoft_sql_sa_password | default(lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD'), true) }}"
         TcpEnabled: true
         ProductKey: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_LICENSE_KEY') | default(microsoft_sql_license_key, true) | default(omit) }}"
+        SuppressReboot: true
       register: microsoft_sql_install_out
 
     - name: Debug install
       ansible.builtin.debug:
         var: microsoft_sql_install_out
+
+    - name: Reboot if SQL Server installation requires it
+      ansible.windows.win_reboot:
+      when: microsoft_sql_install_out.reboot_required | default(false)
 
     # SqlSetup only sets the sa password during the initial install, so enforce
     # it here on every run to keep it in sync with the configured value.
@@ -146,3 +151,4 @@
         state: absent
       when: microsoft_sql_delete_temp_dir
       failed_when: false
+      ignore_unreachable: true
