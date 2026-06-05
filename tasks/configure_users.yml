@@ -23,11 +23,16 @@
     - name: Make sure password is defined for all SQL users
       ansible.builtin.assert:
         that:
-          - "lookup('ansible.builtin.env', user_env_var, default=user.password) is defined"
-        fail_msg: "Neither {{ user_env_var }} nor a password attribute is defined for {{ user }}"
+          - >-
+            (user.password
+            | default(lookup('ansible.builtin.vars', user_var_lower, default=''), true)
+            | default(lookup('ansible.builtin.env', user_var), true))
+            | length > 0
+        fail_msg: "Neither a password attribute, {{ user_var_lower }}, nor {{ user_var }} is defined for {{ user }}"
       loop: "{{ microsoft_sql_local_sql_users | default([]) }}"
       vars:
-        user_env_var: "MICROSOFT_SQL_{{ user | upper }}_PASSWORD"
+        user_var: "MICROSOFT_SQL_{{ user | upper }}_PASSWORD"
+        user_var_lower: "microsoft_sql_{{ user | lower }}_password"
       loop_control:
         loop_var: user
 
@@ -63,10 +68,14 @@
         LoginPasswordExpirationEnabled: false
         LoginPasswordPolicyEnforced: false
         LoginCredential_username: "{{ user }}"
-        LoginCredential_password: "{{ lookup('ansible.builtin.env', user_env_var) }}"
+        LoginCredential_password: >-
+          {{ user.password
+          | default(lookup('ansible.builtin.vars', user_var_lower, default=''), true)
+          | default(lookup('ansible.builtin.env', user_var), true) }}
       loop: "{{ microsoft_sql_local_sql_users | default([]) }}"
       vars:
-        user_env_var: "MICROSOFT_SQL_{{ user | upper }}_PASSWORD"
+        user_var: "MICROSOFT_SQL_{{ user | upper }}_PASSWORD"
+        user_var_lower: "microsoft_sql_{{ user | lower }}_password"
       loop_control:
         loop_var: user
 

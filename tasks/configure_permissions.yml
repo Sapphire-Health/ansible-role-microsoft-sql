@@ -11,7 +11,7 @@
         Name: "{{ db.1 }}"
         UserType: Login
         LoginName: "{{ db.1 }}"
-      loop: "{{ microsoft_sql_databases | subelements('users') }}"
+      loop: "{{ microsoft_sql_databases | subelements('users', skip_missing=True) }}"
       loop_control:
         loop_var: db
 
@@ -23,6 +23,6 @@
         Name: "{{ db.1.name }}"
         MembersToInclude: "{{ db.1.members }}"
         Ensure: Present
-      loop: "{{ microsoft_sql_databases | subelements('roles') }}"
+      loop: "{{ microsoft_sql_databases | subelements('roles', skip_missing=True) }}"
       loop_control:
         loop_var: db

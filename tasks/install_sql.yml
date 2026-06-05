@@ -6,7 +6,7 @@
     - name: Make sure required variables are defined
       ansible.builtin.assert:
         that:
-          - "lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD', default=microsoft_sql_sa_password) is defined"
+          - "(microsoft_sql_sa_password | default(lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD'), true)) | length > 0"
 
     - name: Check storage
       when: microsoft_sql_storage_check
@@ -30,7 +30,7 @@
           ansible.builtin.fail:
             msg: >
               Only {{ microsoft_sql_server_partition_count }} partition(s) were found.
-              Please provision storage for SQL Server installation or set microsoft_sql_skip_storage_check to true to skip this check.
+              Please provision storage for SQL Server installation or set microsoft_sql_storage_check to false to skip this check.
           when: microsoft_sql_server_partition_count | int < 2
 
     - name: Ensure temp directory exists
@@ -93,7 +93,7 @@
     # https://github.com/dsccommunity/SqlServerDsc/wiki/SqlSetup
     - name: Install SQL Server
       ansible.windows.win_dsc:
-        resource_name: SQLSetup
+        resource_name: "{{ microsoft_sql_dsc_resource_name }}"
         Action: "{{ microsoft_sql_dsc_action }}"
         InstanceName: "{{ microsoft_sql_dsc_instancename }}"
         Features: "{{ microsoft_sql_dsc_features }}"
@@ -107,19 +107,35 @@
         SQLBackupDir: "{{ microsoft_sql_dsc_sqlbackupdir | default(omit) }}"
         SecurityMode: "{{ microsoft_sql_dsc_securitymode }}"
         SAPwd_username: sa
-        SAPwd_password: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD', default=microsoft_sql_sa_password) }}"
+        SAPwd_password: "{{ microsoft_sql_sa_password | default(lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD'), true) }}"
         TcpEnabled: true
         ProductKey: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_LICENSE_KEY') | default(microsoft_sql_license_key, true) | default(omit) }}"
-#        AgtSvcAccount_username: "{{ microsoft_sql_dsc_agtsvcaccount | default(omit) }}"
-#        AgtSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
-#        SQLSvcAccount_username: "{{ microsoft_sql_dsc_sqlsvcaccount | default(omit) }}"
-#        SQLSvcAccount_password: "{{ lookup('ansible.builtin.env', 'LOCAL_ADMIN_PASSWORD', default=sql_sa_password) }}"
-        # DependsOn = '[WindowsFeature]NetFramework45'
+        SuppressReboot: true
       register: microsoft_sql_install_out
 
     - name: Debug install
       ansible.builtin.debug:
         var: microsoft_sql_install_out
+
+    - name: Reboot if SQL Server installation requires it
+      ansible.windows.win_reboot:
+      when: microsoft_sql_install_out.reboot_required | default(false)
+
+    # SqlSetup only sets the sa password during the initial install, so enforce
+    # it here on every run to keep it in sync with the configured value.
+    - name: Ensure sa password matches the configured value
+      ansible.windows.win_dsc:
+        resource_name: SqlLogin
+        Name: sa
+        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+        LoginType: SqlLogin
+        LoginMustChangePassword: false
+        LoginPasswordExpirationEnabled: false
+        LoginPasswordPolicyEnforced: false
+        LoginCredential_username: sa
+        LoginCredential_password: >-
+          {{ microsoft_sql_sa_password
+          | default(lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD'), true) }}
 
   always:
     - name: Unmount ISO
@@ -135,3 +151,4 @@
         state: absent
       when: microsoft_sql_delete_temp_dir
       failed_when: false
+      ignore_unreachable: true
