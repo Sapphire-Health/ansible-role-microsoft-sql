@@ -92,30 +92,62 @@
 
     # https://github.com/dsccommunity/SqlServerDsc/wiki/SqlSetup
     - name: Install SQL Server
-      ansible.windows.win_dsc:
-        resource_name: "{{ microsoft_sql_dsc_resource_name }}"
-        Action: "{{ microsoft_sql_dsc_action }}"
-        InstanceName: "{{ microsoft_sql_dsc_instancename }}"
-        Features: "{{ microsoft_sql_dsc_features }}"
-        SourcePath: "{{ microsoft_sql_install_source_path }}"
-        SQLSysAdminAccounts: "{{ microsoft_sql_dsc_sqlsysadminaccounts | default(omit) }}"
-        InstallSQLDataDir: "{{ microsoft_sql_dsc_installsqldatadir | default(omit) }}"
-        SQLUserDBDir: "{{ microsoft_sql_dsc_sqluserdbdir | default(omit) }}"
-        SQLUserDBLogDir: "{{ microsoft_sql_dsc_sqluserdblogdir | default(omit) }}"
-        SQLTempDBDir: "{{ microsoft_sql_dsc_sqltempdbdir | default(omit) }}"
-        SQLTempDBLogDir: "{{ microsoft_sql_dsc_sqltempdblogdir | default(omit) }}"
-        SQLBackupDir: "{{ microsoft_sql_dsc_sqlbackupdir | default(omit) }}"
-        SecurityMode: "{{ microsoft_sql_dsc_securitymode }}"
-        SAPwd_username: sa
-        SAPwd_password: "{{ microsoft_sql_sa_password | default(lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD'), true) }}"
-        TcpEnabled: true
-        ProductKey: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_LICENSE_KEY') | default(microsoft_sql_license_key, true) | default(omit) }}"
-        SuppressReboot: true
-      register: microsoft_sql_install_out
+      block:
+        - name: Install SQL Server
+          ansible.windows.win_dsc:
+            resource_name: "{{ microsoft_sql_dsc_resource_name }}"
+            Action: "{{ microsoft_sql_dsc_action }}"
+            InstanceName: "{{ microsoft_sql_dsc_instancename }}"
+            Features: "{{ microsoft_sql_dsc_features }}"
+            SourcePath: "{{ microsoft_sql_install_source_path }}"
+            SQLSysAdminAccounts: "{{ microsoft_sql_dsc_sqlsysadminaccounts | default(omit) }}"
+            InstallSQLDataDir: "{{ microsoft_sql_dsc_installsqldatadir | default(omit) }}"
+            SQLUserDBDir: "{{ microsoft_sql_dsc_sqluserdbdir | default(omit) }}"
+            SQLUserDBLogDir: "{{ microsoft_sql_dsc_sqluserdblogdir | default(omit) }}"
+            SQLTempDBDir: "{{ microsoft_sql_dsc_sqltempdbdir | default(omit) }}"
+            SQLTempDBLogDir: "{{ microsoft_sql_dsc_sqltempdblogdir | default(omit) }}"
+            SQLBackupDir: "{{ microsoft_sql_dsc_sqlbackupdir | default(omit) }}"
+            SecurityMode: "{{ microsoft_sql_dsc_securitymode }}"
+            SAPwd_username: sa
+            SAPwd_password: "{{ microsoft_sql_sa_password | default(lookup('ansible.builtin.env', 'MICROSOFT_SQL_SA_PASSWORD'), true) }}"
+            TcpEnabled: true
+            ProductKey: "{{ lookup('ansible.builtin.env', 'MICROSOFT_SQL_LICENSE_KEY') | default(microsoft_sql_license_key, true) | default(omit) }}"
+            SuppressReboot: true
+          register: microsoft_sql_install_out
 
-    - name: Debug install
-      ansible.builtin.debug:
-        var: microsoft_sql_install_out
+        - name: Debug install
+          ansible.builtin.debug:
+            var: microsoft_sql_install_out
+      rescue:
+        - name: Find most recent SQL Server setup summary log
+          ansible.windows.win_shell: |
+            $log = Get-ChildItem "C:\Program Files\Microsoft SQL Server" -Recurse -Filter "Summary.txt" -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1
+            if ($log) { $log.FullName }
+          register: microsoft_sql_log_path
+          changed_when: false
+
+        - name: Show SQL Server setup summary log header
+          ansible.windows.win_shell: |
+            foreach ($line in (Get-Content "{{ microsoft_sql_log_path.stdout_lines[0] }}")) {
+              if ($line.Trim() -eq '') { break }
+              $line
+            }
+          register: microsoft_sql_log_head
+          changed_when: false
+          when: microsoft_sql_log_path.stdout_lines | length > 0
+
+        - name: Display SQL Server setup summary log header
+          ansible.builtin.debug:
+            msg: "{{ microsoft_sql_log_head.stdout_lines }}"
+          when: microsoft_sql_log_head is not skipped
+
+        - name: Re-raise install failure
+          ansible.builtin.fail:
+            msg: >-
+              SQL Server installation failed. See log output above.
+              Full log: {{ microsoft_sql_log_path.stdout_lines | first | default('not found') }} on the target host.
 
     - name: Reboot if SQL Server installation requires it
       ansible.windows.win_reboot:
